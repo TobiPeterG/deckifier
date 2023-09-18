@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Gnome (single time session)
+Comment=This session logs you into GNOME one time
+Exec=/usr/bin/gdm-session-oneshot
+TryExec=/usr/bin/gdm-session-oneshot
+Type=Application
+DesktopNames=Gnome
+X-GDM-SessionRegisters=true
