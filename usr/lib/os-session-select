@@ -4,11 +4,17 @@ set -e
 
 die() { echo >&2 "!! $*"; exit 1; }
 
-CONF_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
+if [ -n "$PKEXEC_UID" ]; then
+  username=$(getent passwd "$PKEXEC_UID" | cut -d: -f1)
+else
+  username=$(whoami)
+fi
+
+CONF_FILE="/var/lib/AccountsService/users/$username"
 SENTINEL_FILE="steamos-session-select"
 
 # For sanity this shipped file must be present, to ensure we're still on a normal-looking Chimeraos setup.
-CHECK_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
+CHECK_FILE="/var/lib/AccountsService/users/$username"
 
 session="${1:-gamescope}"
 session_type="wayland"
@@ -50,13 +56,13 @@ fi
 # We use "plasma" as "desktop" to hook up to SteamOS's scripts
 case "$session" in
   plasma-wayland-persistent)
-    session_launcher="cinnamon-session"
+    session_launcher="gnome-session"
   ;;
   plasma-x11-persistent)
-    session_launcher="cinnamon-session"
+    session_launcher="gnome-session"
   ;;
   desktop|plasma)
-    session_launcher="cinnamon-session-oneshot"
+    session_launcher="gnome-session-oneshot"
     create_sentinel=1
   ;;
   gamescope)
@@ -77,13 +83,12 @@ if [[ $EUID != 0 ]]; then
   exit 1
 fi
 
-{
-  echo "[Seat:*]"
-  echo "autologin-session=$session_launcher"
-} > "$CONF_FILE"
+# Update user session information
+sed -i "s/^Session=.*/Session=$session_launcher/" $CONF_FILE
+sed -i "s/^XSession=.*/XSession=$session_launcher/" $CONF_FILE
 
 echo "Updated system autologin session to $session_launcher"
-systemctl reset-failed lightdm
-systemctl restart lightdm
-echo "Restarted LightDM"
+systemctl reset-failed gdm
+systemctl restart gdm
+echo "Restarted GDM"
 
