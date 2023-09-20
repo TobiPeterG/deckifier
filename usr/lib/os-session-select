@@ -88,7 +88,7 @@ sed -i "s/^Session=.*/Session=$session_launcher/" $CONF_FILE
 sed -i "s/^XSession=.*/XSession=$session_launcher/" $CONF_FILE
 
 echo "Updated system autologin session to $session_launcher"
-systemctl reset-failed gdm
-systemctl restart gdm
-echo "Restarted GDM"
+systemctl reset-failed display-manager
+systemctl restart display-manager
+echo "Restarted Display Manager"
 
