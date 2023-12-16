@@ -1,3 +1,4 @@
+#!/usr/bin/env xdg-open
 [Desktop Entry]
 Name=Game Mode
 Exec=/usr/bin/steamos-session-select

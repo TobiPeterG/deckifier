@@ -1,0 +1,10 @@
+[Unit]
+Description=Auto accept gpg keys of all activated repos
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/aeon-accept-gpg-keys
+
+[Install]
+

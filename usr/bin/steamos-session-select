@@ -4,17 +4,11 @@ set -e
 
 die() { echo >&2 "!! $*"; exit 1; }
 
-if [ -n "$PKEXEC_UID" ]; then
-  username=$(getent passwd "$PKEXEC_UID" | cut -d: -f1)
-else
-  username=$(whoami)
-fi
-
-CONF_FILE="/var/lib/AccountsService/users/$username"
+CONF_FILE="/etc/alternatives/default-waylandsession.desktop"
 SENTINEL_FILE="steamos-session-select"
 
 # For sanity this shipped file must be present, to ensure we're still on a normal-looking Chimeraos setup.
-CHECK_FILE="/var/lib/AccountsService/users/$username"
+CHECK_FILE="/etc/alternatives/default-waylandsession.desktop"
 
 session="${1:-gamescope}"
 session_type="wayland"
@@ -84,11 +78,16 @@ if [[ $EUID != 0 ]]; then
 fi
 
 # Update user session information
-sed -i "s/^Session=.*/Session=$session_launcher/" $CONF_FILE
-sed -i "s/^XSession=.*/XSession=$session_launcher/" $CONF_FILE
+ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $CONF_FILE
 
 echo "Updated system autologin session to $session_launcher"
 systemctl reset-failed display-manager
-systemctl restart display-manager
+systemctl stop display-manager
+if [ "$session_launcher" == "gamescope-session" ]; then
+  sleep 5
+else
+  sleep 2
+fi
+systemctl start display-manager
 echo "Restarted Display Manager"
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+#accept gpg keys
+transactional-update -c run zypper --gpg-auto-import-keys --non-interactive refresh

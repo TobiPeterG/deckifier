@@ -1,0 +1,129 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+# Define the log file path
+log_file="/tmp/transactional_update_log.txt"
+
+# Function to monitor and estimate the progress
+monitor_progress() {
+    local total_packages=0
+    local current_package=0
+    local update_started=0
+    local phase="Downloading" # Start with the Downloading phase
+
+    # Tail the log file and process each line
+    tail -f "$log_file" | while IFS= read -r line; do
+        # Check if the transactional-update process has started
+        if [[ "$line" =~ Options: -c dup ]]; then
+            update_started=1
+        fi
+
+        # Once update has started, begin to parse and output progress
+        if [[ "$update_started" -eq 1 ]]; then
+            # Parse the progress for downloading
+            if [[ "$line" =~ Retrieving:\ .*\(([0-9]+)/([0-9]+)\) ]]; then
+                current_package=${BASH_REMATCH[1]}
+                total_packages=${BASH_REMATCH[2]}
+
+                # Calculate overall progress for downloading
+                local progress=$((current_package * 100 / (2 * total_packages)))
+
+                echo "$progress%"
+            fi
+
+            # Switch to Installation phase when "Checking for file conflicts:" line appears
+            if [[ "$line" == *"Checking for file conflicts:"* ]] && [[ "$phase" == "Downloading" ]]; then
+                phase="Installing"
+                current_package=0 # Reset current package for installation phase
+            fi
+
+            # Parse the progress for installing
+            if [[ "$phase" == "Installing" && "$line" =~ \(\ *([0-9]+)/([0-9]+)\)\ Installing:\ .*|\(\ *([0-9]+)/([0-9]+)\)\ Removing:\ .* ]]; then
+                current_package=${BASH_REMATCH[1]}
+                total_packages=${BASH_REMATCH[2]}
+
+                # Calculate overall progress for installation
+                local progress=$((50 + current_package * 50 / total_packages))
+
+                echo "$progress%"
+            fi
+
+            # End when all packages are processed
+            if [[ "$phase" == "Installing" && "$current_package" -eq "$total_packages" ]]; then
+                echo "100%"
+                pkill -P $$ tail
+                break
+            fi
+        fi
+    done
+}
+
+run_update() {
+    # Run the transactional-update command and redirect output to the log file
+    transactional-update -c dup > "$log_file" 2>&1 &
+    pid=$!
+
+    # Start the monitor_progress function in the background
+    monitor_progress &
+
+    # Wait for the transactional-update command to finish
+    wait $pid
+}
+
+check_update() {
+    # Run zypper lu and count the number of update entries
+    update_count=$(zypper lu | tail -n +5 | grep -c ' | ')
+
+    # Check the update count
+    if [ "$update_count" -eq 0 ]; then
+        echo "No updates available."
+        exit 7
+    else
+        echo "Updates are available."
+        exit 0
+    fi
+}
+
+main() {
+    if [ $EUID -ne 0 ]; then
+        echo "$(basename $0) must be run as root"
+        exit 1
+    fi
+
+    TRUP_CHECK_UPDATE=0
+    TRUP_STEAM_PROGRESS=0
+
+    while (( "$#" )); do
+        case $1 in
+            --check)
+                TRUP_CHECK_UPDATE=1
+                shift
+                ;;
+            --steam-progress)
+                TRUP_STEAM_PROGRESS=1
+                shift
+                ;;
+            -*|--*)
+                echo "Unknown argument $1"
+                exit 1
+                ;;
+        esac
+    done
+    check_update
+    exit_status=$?  # Capture the exit status of check_update
+    if [ $exit_status -eq 7 ]; then
+        exit 7 # let Steam know there is no update available
+    fi
+    
+    if [ $TRUP_CHECK_UPDATE -eq 1 ]; then
+        exit 0 # let Steam know there is an update available
+    fi
+    
+    run_update()
+}
+
+if [ "$0" = "$BASH_SOURCE" ] ; then
+    main "$@"
+fi
