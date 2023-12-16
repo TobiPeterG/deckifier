@@ -16,7 +16,7 @@ monitor_progress() {
     # Tail the log file and process each line
     tail -f "$log_file" | while IFS= read -r line; do
         # Check if the transactional-update process has started
-        if [[ "$line" =~ Options: -c dup ]]; then
+        if [[ "$line" =~ Options:\ -c\ dup ]]; then
             update_started=1
         fi
 
@@ -73,16 +73,17 @@ run_update() {
 }
 
 check_update() {
+    zypper refresh
     # Run zypper lu and count the number of update entries
-    update_count=$(zypper lu | tail -n +5 | grep -c ' | ')
+    update_count=$(zypper lu | tail -n +5 | grep -c ' | ' || true)
 
     # Check the update count
     if [ "$update_count" -eq 0 ]; then
         echo "No updates available."
-        exit 7
+        return 7
     else
         echo "Updates are available."
-        exit 0
+        return 0
     fi
 }
 
@@ -121,7 +122,7 @@ main() {
         exit 0 # let Steam know there is an update available
     fi
     
-    run_update()
+    run_update
 }
 
 if [ "$0" = "$BASH_SOURCE" ] ; then

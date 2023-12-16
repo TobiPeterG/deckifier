@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ln -sf /usr/share/wayland-sessions/gamescope-session.desktop /etc/alternatives/default-waylandsession.desktop
+ln -sf /usr/share/wayland-sessions/gamescope-session-steam.desktop /etc/alternatives/default-waylandsession.desktop
