@@ -73,7 +73,7 @@ run_update() {
 }
 
 check_update() {
-    zypper refresh
+    zypper --gpg-auto-import-keys --non-interactive refresh
     # Run zypper lu and count the number of update entries
     update_count=$(zypper lu | tail -n +5 | grep -c ' | ' || true)
 
