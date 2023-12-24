@@ -4,11 +4,9 @@ set -e
 
 die() { echo >&2 "!! $*"; exit 1; }
 
-CONF_FILE="/etc/alternatives/default-waylandsession.desktop"
+WAY_FILE="/etc/alternatives/default-waylandsession.desktop"
+X_FILE="/etc/alternatives/default-xsession.desktop"
 SENTINEL_FILE="steamos-session-select"
-
-# For sanity this shipped file must be present, to ensure we're still on a normal-looking Chimeraos setup.
-CHECK_FILE="/etc/alternatives/default-waylandsession.desktop"
 
 session="${1:-gamescope}"
 session_type="wayland"
@@ -50,10 +48,10 @@ fi
 # We use "plasma" as "desktop" to hook up to SteamOS's scripts
 case "$session" in
   plasma-wayland-persistent)
-    session_launcher="gnome-session"
+    session_launcher="gnome"
   ;;
   plasma-x11-persistent)
-    session_launcher="gnome-session"
+    session_launcher="gnome"
   ;;
   desktop|plasma)
     session_launcher="gnome-session-oneshot"
@@ -78,16 +76,16 @@ if [[ $EUID != 0 ]]; then
 fi
 
 # Update user session information
-ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $CONF_FILE
+if [ "$session_launcher" == "gamescope-session-steam" ]; then
+	ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $WAY_FILE
+	sed -i "s/^#WaylandEnable=.*/WaylandEnable=true/" /etc/gdm/custom.conf
+	
+else
+	ln -sf /usr/share/xsessions/$session_launcher.desktop $X_FILE
+	sed -i "s/^#WaylandEnable=.*/WaylandEnable=false/" /etc/gdm/custom.conf
 
 echo "Updated system autologin session to $session_launcher"
 systemctl reset-failed display-manager
-systemctl stop display-manager
-if [ "$session_launcher" == "gamescope-session-steam" ]; then
-  sleep 5
-else
-  sleep 2
-fi
-systemctl start display-manager
+systemctl restart display-manager
 echo "Restarted Display Manager"
 
