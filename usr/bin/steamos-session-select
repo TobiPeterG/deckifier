@@ -75,15 +75,7 @@ if [[ $EUID != 0 ]]; then
   exit 1
 fi
 
-# Update user session information
-if [ "$session_launcher" == "gamescope-session-steam" ]; then
-	ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $WAY_FILE
-	sed -i "s/^WaylandEnable=.*/WaylandEnable=true/" /etc/gdm/custom.conf
-	
-else
-	ln -sf /usr/share/xsessions/$session_launcher.desktop $X_FILE
-	sed -i "s/^WaylandEnable=.*/WaylandEnable=false/" /etc/gdm/custom.conf
-fi
+ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $WAY_FILE
 
 echo "Updated system autologin session to $session_launcher"
 systemctl restart display-manager
