@@ -78,6 +78,8 @@ fi
 ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $WAY_FILE
 
 echo "Updated system autologin session to $session_launcher"
-systemctl restart display-manager
+systemctl stop display-manager
+sleep 3
+systemctl start display-manager
 echo "Restarted Display Manager"
 
