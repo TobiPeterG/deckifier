@@ -61,6 +61,7 @@ monitor_progress() {
 }
 
 run_update() {
+    echo "0%"
     # Run the transactional-update command and redirect output to the log file
     transactional-update -c dup > "$log_file" 2>&1 &
     pid=$!
