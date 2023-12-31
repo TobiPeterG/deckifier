@@ -1,12 +1,42 @@
-#!/usr/bin/bash
+#!/bin/bash
+set -e
 
-# Hook for custom OS branch script
-STEAMOS_BRANCH_SCRIPT="/usr/lib/os-branch-select"
-if [ -f $STEAMOS_BRANCH_SCRIPT ] ; then
-	# Call branch script from the OS
-	${STEAMOS_BRANCH_SCRIPT} $@
-else
-	# Simply call shutdown on the client
-	echo "No branch script was found, branches won't be visible in the SteamUI"
+BRANCH_PATH="/etc/trup/source.conf"
+. "$BRANCH_PATH"
+
+if [[ $# -eq 1 ]]; then
+  case "$1" in
+    "-c")
+      case "$BRANCH" in
+        "stable" | "unstable" | "testing")
+          echo "$BRANCH"
+          exit 0
+          ;;
+        *)
+          # This can happen on CI/dev builds or when downgrading from a newer build that knows of more branches.  The update
+          # path should decide how to handle it.
+          echo >&2 "Warning: Unrecognized currently selected branch name '$BRANCH', updates may not succeed."
+          echo "$BRANCH"
+          exit 0
+          ;;
+      esac
+      ;;
+    "-l")
+      echo stable
+      echo unstable
+      echo testing
+      exit 0
+      ;;
+    "stable" | "unstable" | "testing")
+      sed -i "s/^BRANCH=.*/BRANCH=$1/" "$BRANCH_PATH"
+      exit 0
+      ;;
+    "unstable")
+      echo "The unstable branch has a high risk of breaking."
+      echo "Do NOT use it unless you know what you are doing."
+      exit 0
+      ;;
+  esac
 fi
 
+echo "Usage: steamos-select-branch <-stable|unstable|testing>" 1>&2

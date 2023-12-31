@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 set -o pipefail
 
@@ -61,7 +60,6 @@ monitor_progress() {
 }
 
 run_update() {
-    echo "0%"
     # Run the transactional-update command and redirect output to the log file
     transactional-update -c dup > "$log_file" 2>&1 &
     pid=$!
@@ -74,7 +72,7 @@ run_update() {
 }
 
 check_update() {
-    zypper --gpg-auto-import-keys --non-interactive refresh || true
+    transactional-update -c run zypper --gpg-auto-import-keys --non-interactive refresh || true
     # Run zypper lu and count the number of update entries
     update_count=$(zypper lu | tail -n +5 | grep -c ' | ' || true)
 
@@ -87,6 +85,28 @@ check_update() {
         return 0
     fi
 }
+
+check_branch() {
+    BRANCH_PATH="/etc/trup/source.conf"
+    . "$BRANCH_PATH"
+
+    # Check if OLD_REPO and OLD_BRANCH are set
+    if [ -n "$OLD_REPO" ] && [ -n "$OLD_BRANCH" ]; then
+        # Compare with current REPO and BRANCH
+        if [ "$OLD_REPO" != "$REPO" ] || [ "$OLD_BRANCH" != "$BRANCH" ]; then
+            # Remove old repository
+            echo "Removing repository ${OLD_REPO//:/_}_${OLD_BRANCH} saved as ${NAME}_${OLD_BRANCH}..."
+            zypper rr ${NAME}_${OLD_BRANCH}
+
+            # Add new repository
+            echo "Adding repository ${REPO//:/_}_${BRANCH} as ${NAME}_${BRANCH}..."
+            zypper ar -f -p 90 "https://download.opensuse.org/repositories/${REPO//:/:/}:/${BRANCH}/repo/" ${NAME}_${BRANCH}
+        fi
+    fi
+    sed -i "s/^OLD_REPO=.*/OLD_REPO=${REPO}/" /etc/trup/source.conf
+    sed -i "s/^OLD_BRANCH=.*/OLD_BRANCH=${BRANCH}/" /etc/trup/source.conf
+}
+
 
 main() {
     if [ $EUID -ne 0 ]; then
@@ -113,6 +133,9 @@ main() {
                 ;;
         esac
     done
+    
+    echo "0%"
+    check_branch
     check_update
     exit_status=$?  # Capture the exit status of check_update
     if [ $exit_status -eq 7 ]; then
