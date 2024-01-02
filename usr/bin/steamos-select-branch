@@ -4,12 +4,26 @@ set -e
 BRANCH_PATH="/etc/trup/source.conf"
 . "$BRANCH_PATH"
 
+#to correctly display the branches in steam, we need to use the SteamOS branched rel, rc, beta and staging. Since our branches have different names, we need to translate them.
+
 if [[ $# -eq 1 ]]; then
   case "$1" in
     "-c")
       case "$BRANCH" in
-        "stable" | "unstable" | "testing")
-          echo "$BRANCH"
+        "stable")
+          echo "rel"
+          exit 0
+          ;;
+        "testing")
+          echo "beta"
+          exit 0
+          ;;
+        "unstable")
+          echo "rc"
+          exit 0
+          ;;
+        "devel")
+          echo "staging"
           exit 0
           ;;
         *)
@@ -22,21 +36,30 @@ if [[ $# -eq 1 ]]; then
       esac
       ;;
     "-l")
-      echo stable
-      echo unstable
-      echo testing
+      echo rel
+      echo beta
+      echo rc
       exit 0
       ;;
-    "stable" | "unstable" | "testing")
-      sed -i "s/^BRANCH=.*/BRANCH=$1/" "$BRANCH_PATH"
+    "rel")
+      sed -i "s/^BRANCH=.*/BRANCH=stable/" "$BRANCH_PATH"
       exit 0
       ;;
-    "unstable")
-      echo "The unstable branch has a high risk of breaking."
+    "beta")
+      sed -i "s/^BRANCH=.*/BRANCH=testing/" "$BRANCH_PATH"
+      exit 0
+      ;;
+    "rc")
+      sed -i "s/^BRANCH=.*/BRANCH=unstable/" "$BRANCH_PATH"
+      exit 0
+      ;;
+    "staging")
+      echo "The staging branch has a high risk of breaking."
       echo "Do NOT use it unless you know what you are doing."
+      sed -i "s/^BRANCH=.*/BRANCH=devel/" "$BRANCH_PATH"
       exit 0
       ;;
   esac
 fi
 
-echo "Usage: steamos-select-branch <-stable|unstable|testing>" 1>&2
+echo "Usage: steamos-select-branch <-rel|beta|rc|staging>" 1>&2
