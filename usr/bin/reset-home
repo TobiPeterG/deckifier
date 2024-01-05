@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+
+while w| grep -q "^deck\s"; do
+    echo "User 'deck' is currently logged in. Waiting..."
+    sleep 1
+done
+
+echo "User 'deck' is no longer logged in. Continuing with the process."
+
+rm -rf /home/deck
+mkhomedir_helper deck
+
+echo "Home directory reset completed successfully."
+systemctl disable reset-home.service
+

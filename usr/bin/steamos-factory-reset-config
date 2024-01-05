@@ -1,0 +1,10 @@
+#! /bin/bash
+
+snapper list --disable-used-space --columns=number | grep -q "  1*"
+
+if ! snapper list --disable-used-space --columns=number | grep -Eq "^\s*1(-|\*|\+|\s)"; then
+    echo "Snapshot 1 does not exist."
+    exit 1
+fi
+snapper rollback 1
+systemctl enable reset-home.service
