@@ -1,7 +1,7 @@
 [Unit]
 Description=Reset Home Directory
-RequiresMountsFor=/etc /home
-Before=systemd-poweroff.service shutdown.target umount.target final.target systemd-halt.service
+After=local-fs.target
+Before=multi-user.target display-manager.service
 
 [Service]
 Type=oneshot
@@ -12,5 +12,5 @@ SyslogIdentifier=reset-home
 RemainAfterExit=yes
 
 [Install]
-WantedBy=systemd-poweroff.service shutdown.target umount.target final.target systemd-halt.service
+WantedBy=multi-user.target display-manager.service
 

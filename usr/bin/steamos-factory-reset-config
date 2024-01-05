@@ -7,4 +7,4 @@ if ! snapper list --disable-used-space --columns=number | grep -Eq "^\s*1(-|\*|\
     exit 1
 fi
 snapper rollback 1
-systemctl enable reset-home.service
+touch "/home/.deck_remove"

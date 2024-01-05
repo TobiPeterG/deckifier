@@ -1,15 +1,29 @@
 #!/usr/bin/bash
 
-while w| grep -q "^deck\s"; do
-    echo "User 'deck' is currently logged in. Waiting..."
-    sleep 1
-done
+if [ ! -f "/home/.deck_remove" ]; then
+    exit 0
+fi
 
-echo "User 'deck' is no longer logged in. Continuing with the process."
+if w | grep -q "^deck\s"; then
+    echo "User 'deck' is currently logged in. Aborting."
+    exit 1
+fi
+
+echo "User 'deck' is not logged in. Continuing with the process."
 
 rm -rf /home/deck
 mkhomedir_helper deck
 
 echo "Home directory reset completed successfully."
-systemctl disable reset-home.service
+rm "/home/.deck_remove"
 
+# List all snapshots, exclude snapshots 0 and 1, and filter out non-numeric lines
+snapshots_to_delete=$(snapper list --disable-used-space --columns=number | awk '$1 ~ /^[0-9]+$/ && $1 != 0 && $1 != 1 {print $1}')
+
+# Loop through and delete each snapshot
+for snapshot in $snapshots_to_delete; do
+    echo "Deleting snapshot: $snapshot"
+    snapper delete "$snapshot"
+done
+
+echo "All snapshots have been deleted."
