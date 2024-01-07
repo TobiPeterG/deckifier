@@ -1,3 +1,6 @@
 #!/bin/bash
 
-ln -sf /usr/share/wayland-sessions/gamescope-session-steam.desktop /etc/alternatives/default-waylandsession.desktop
+{
+  echo "[Seat:*]"
+  echo "autologin-session=gamescope-session-steam"
+} > "/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"

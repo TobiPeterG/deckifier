@@ -1,18 +1,30 @@
 #! /usr/bin/bash
 
 set -e
+session_conf="/etc/trup/session.conf"
+. $session_conf
+is_kwin_running() {
+    pgrep -f "kwin" > /dev/null
+    return $?
+}
+
+is_mutter_running() {
+    pgrep -f "mutter" > /dev/null
+    return $?
+}
+
 
 die() { echo >&2 "!! $*"; exit 1; }
 
-WAY_FILE="/etc/alternatives/default-waylandsession.desktop"
-X_FILE="/etc/alternatives/default-xsession.desktop"
+CONF_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
 SENTINEL_FILE="steamos-session-select"
 
 session="${1:-gamescope}"
 session_type="wayland"
 
-session_launcher="gamescope-session-steam"
+session_launcher="gamescope-session"
 create_sentinel=""
+session_running="/home/deck/.running"
 
 if [[ "$2" == "--sentinel-created" ]]; then
   SENTINEL_CREATED=1
@@ -43,18 +55,36 @@ if [[ -z $SENTINEL_CREATED ]]; then
 
   # If we were executed as a session user and then re-execute as root below, we don't want to set root's sentinel too
   export SENTINEL_CREATED=1
+  
+  if is_kwin_running; then
+    qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout
+  fi
+  if is_mutter_running; then
+    gnome-session-quit --no-prompt
+  fi
+  #another session switch script is still running
+  if [ -f "$session_running" ]; then
+    exit 0
+  fi
+  touch $session_running
+fi
+
+# Become root
+if [[ $EUID != 0 ]]; then
+  exec pkexec "$(realpath $0)" "$session" --sentinel-created
+  exit 1
 fi
 
 # We use "plasma" as "desktop" to hook up to SteamOS's scripts
 case "$session" in
   plasma-wayland-persistent)
-    session_launcher="gnome"
+    session_launcher="$desktop_session"
   ;;
   plasma-x11-persistent)
-    session_launcher="gnome"
+    session_launcher="$desktop_session"
   ;;
   desktop|plasma)
-    session_launcher="gnome-session-oneshot"
+    session_launcher=""$desktop_session"-session-oneshot"
     create_sentinel=1
   ;;
   gamescope)
@@ -69,17 +99,22 @@ esac
 
 echo "Updated user selected session to $session_launcher"
 
-# Become root
-if [[ $EUID != 0 ]]; then
-  exec pkexec "$(realpath $0)" "$session" --sentinel-created
-  exit 1
-fi
-
-ln -sf /usr/share/wayland-sessions/$session_launcher.desktop $WAY_FILE
+{
+  echo "[Seat:*]"
+  echo "autologin-session=$session_launcher"
+} > "$CONF_FILE"
 
 echo "Updated system autologin session to $session_launcher"
-systemctl stop display-manager
-sleep 3
-systemctl start display-manager
-echo "Restarted Display Manager"
+while is_kwin_running; do
+    sleep 0.5;
+done
+while is_mutter_running; do
+    sleep 0.5;
+done
+systemctl reset-failed display-manager.service
+systemctl stop display-manager.service
+sleep 1
+rm "$session_running"
+systemctl start display-manager.service
+echo "Restarted LightDM"
 

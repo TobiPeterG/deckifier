@@ -11,11 +11,10 @@ fi
 
 echo "User 'deck' is not logged in. Continuing with the process."
 
-rm -rf /home/deck
+rm -rf /home/*
 mkhomedir_helper deck
 
 echo "Home directory reset completed successfully."
-rm "/home/.deck_remove"
 
 # List all snapshots, exclude snapshots 0 and 1, and filter out non-numeric lines
 snapshots_to_delete=$(snapper list --disable-used-space --columns=number | awk '$1 ~ /^[0-9]+$/ && $1 != 0 && $1 != 1 {print $1}')

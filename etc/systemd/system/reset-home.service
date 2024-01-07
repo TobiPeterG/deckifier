@@ -6,10 +6,6 @@ Before=multi-user.target display-manager.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/reset-home
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=reset-home
-RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target display-manager.service
