@@ -61,7 +61,7 @@ monitor_progress() {
 
 run_update() {
     # Run the transactional-update command and redirect output to the log file
-    transactional-update -c dup > "$log_file" 2>&1 &
+    transactional-update -c run zypper --non-interactive dup --allow-vendor-change > "$log_file" 2>&1 &
     pid=$!
 
     # Start the monitor_progress function in the background

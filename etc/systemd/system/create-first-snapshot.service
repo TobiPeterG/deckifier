@@ -1,0 +1,14 @@
+[Unit]
+Description=Create first snapshot
+After=local-fs.target
+Before=first-boot-complete.target
+Wants=first-boot-complete.target
+ConditionFirstBoot=yes
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/create-first-snapshot
+
+[Install]
+WantedBy=first-boot-complete.target
+
