@@ -1,0 +1,12 @@
+[Unit]
+Description=Reboot after first boot
+After=first-boot-complete.target
+Requisite=first-boot-complete.target
+
+[Service]
+Type=oneshot
+ExecStart=systemctl restart
+
+[Install]
+WantedBy=multi-user.target
+

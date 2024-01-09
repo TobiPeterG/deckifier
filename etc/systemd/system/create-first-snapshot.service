@@ -1,8 +1,8 @@
 [Unit]
 Description=Create first snapshot
-After=local-fs.target
+After=local-fs.target systemd-repart.service
 Before=first-boot-complete.target
-Wants=first-boot-complete.target
+Wants=first-boot-complete.target systemd-repart.service
 ConditionFirstBoot=yes
 
 [Service]
