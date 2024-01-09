@@ -1,5 +1,5 @@
 [Unit]
-Description=Create first snapshot
+Description=Factory Reset
 After=local-fs.target
 Before=first-boot-complete.target
 Wants=first-boot-complete.target
@@ -7,7 +7,7 @@ ConditionFirstBoot=yes
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/create-first-snapshot
+ExecStart=/usr/bin/factory-reset
 
 [Install]
 WantedBy=first-boot-complete.target

@@ -1,5 +1,4 @@
 #! /bin/bash
-
 if ! snapper list --disable-used-space --columns=number | grep -Eq "^\s*2(-|\*|\+|\s)"; then
     echo "Snapshot 2 does not exist."
     exit 1

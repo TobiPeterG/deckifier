@@ -1,5 +1,0 @@
-#! /bin/bash
-
-transactional-update --no-selfupdate -c 1 run sleep 1
-transactional-update --no-selfupdate -c 2 run sleep 1
-snapper modify -c "" 2

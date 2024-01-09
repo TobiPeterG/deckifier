@@ -1,0 +1,12 @@
+[Unit]
+Description=Reboot to resize
+After=first-boot-complete.target systemd-repart.service local-fs.target
+Requisite=first-boot-complete.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/first-boot-resize
+
+[Install]
+WantedBy=multi-user.target
+
