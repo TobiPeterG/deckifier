@@ -1,7 +1,7 @@
 #! /bin/bash
-if ! snapper list --disable-used-space --columns=number | grep -Eq "^\s*2(-|\*|\+|\s)"; then
-    echo "Snapshot 2 does not exist."
-    exit 1
-fi
-transactional-update --no-selfupdate -c 2 run sleep 1
-touch "/home/.deck_remove"
+
+rm -rf /boot/efi/*
+rm -rf /boot/efi/.* || true
+cp -r /.snapshots/fr/bfr/efi/* /boot/efi/
+cp -r /.snapshots/fr/bfr/efi/.* /boot/efi/ || true
+btrfs subvolume set-default /.snapshots/fr/snapshot

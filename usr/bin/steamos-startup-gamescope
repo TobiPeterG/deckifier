@@ -4,5 +4,3 @@
   echo "[Seat:*]"
   echo "autologin-session=gamescope-session-steam"
 } > "/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
-
-snapper modify -c "" 2

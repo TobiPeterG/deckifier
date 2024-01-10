@@ -2,7 +2,7 @@
 Description=Factory Reset
 After=local-fs.target
 Before=first-boot-complete.target
-Wants=first-boot-complete.target
+Wants=first-boot-complete.target.wants
 ConditionFirstBoot=yes
 
 [Service]

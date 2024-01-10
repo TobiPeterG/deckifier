@@ -1,30 +1,35 @@
 #!/usr/bin/bash
 
-if [ ! -f "/home/.deck_remove" ]; then
+if [ ! -f "/.factory_reset" ]; then
     exit 0
 fi
 
-if w | grep -q "^deck\s"; then
-    echo "User 'deck' is currently logged in. Aborting."
-    exit 1
-fi
+directories=(/home /opt /root /srv /var /usr/local /boot/writable /boot/grub2/i386-pc /boot/grub2/x86_64-efi)
 
-echo "User 'deck' is not logged in. Continuing with the process."
+rootsource=$(findmnt / -n --output source | sed 's/\[.*\]//g')
+mount -t btrfs -o subvol=/ $rootsource /mnt
 
-rm -rf /home/*
-rm -rf /home/.*
-mkhomedir_helper deck
-
-echo "Home directory reset completed successfully."
-
-# List all snapshots, exclude snapshots 0 and 1, and filter out non-numeric lines
-snapshots_to_delete=$(snapper list --disable-used-space --columns=number | awk '$1 ~ /^[0-9]+$/ && $1 != 0 && $1 != 1 && $1 != 2 {print $1}')
-
-# Loop through and delete each snapshot
+for dir in "${directories[@]}"
+do
+  btrfs subvolume delete /mnt/@$dir
+  btrfs subvolume snapshot /mnt/@${dir}ori /mnt/@${dir}
+done
+btrfs subvolume set-default /.snapshots/fr/snapshot
+snapshots_to_delete=$(snapper list --disable-used-space --columns=number | awk '$1 ~ /^[0-9]+$/ {print $1}')
 for snapshot in $snapshots_to_delete; do
     echo "Deleting snapshot: $snapshot"
     snapper delete "$snapshot"
 done
-transactional-update --no-selfupdate cleanup-overlays
 
-echo "All snapshots have been deleted."
+mkdir /.snapshots/1
+btrfs subvolume snapshot -r /.snapshots/ori/snapshot /.snapshots/1/snapshot
+cp /.snapshots/ori/info.xml /.snapshots/1/info.xml
+btrfs subvolume set-default /.snapshots/1/snapshot
+
+rm -rf /boot/efi/*
+rm -rf /boot/efi/.* || true
+cp -r /.snapshots/fr/bori/efi/* /boot/efi/
+cp -r /.snapshots/fr/bori/efi/.* /boot/efi/ || true
+
+umount /mnt
+systemctl reboot

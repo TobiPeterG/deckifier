@@ -1,6 +1,7 @@
 [Unit]
 Description=Reboot to resize
 After=first-boot-complete.target systemd-repart.service local-fs.target
+Before=display-manager.service multi-user.target
 Requisite=first-boot-complete.target
 
 [Service]
