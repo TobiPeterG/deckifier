@@ -3,6 +3,4 @@ if [ -f "/.factory_reset" ]; then
     exit 0
 fi
 transactional-update --no-selfupdate -c run btrfs filesystem resize max /
-transactional-update --no-selfupdate -c 2 run sleep 1
-snapper modify -c "" 2
 systemctl reboot
