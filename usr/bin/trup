@@ -100,7 +100,7 @@ check_branch() {
 
             # Add new repository
             echo "Adding repository ${REPO//:/_}_${BRANCH} as ${NAME}_${BRANCH}..."
-            zypper ar -f -p 90 "https://download.opensuse.org/repositories/${REPO//:/:/}:/${BRANCH}/repo/" ${NAME}_${BRANCH}
+            zypper ar -f -p 90 "https://download.opensuse.org/repositories/${REPO//:/:/}:/${BRANCH}/openSUSE_Tumbleweed/" ${NAME}_${BRANCH}
         fi
     fi
     sed -i "s/^OLD_REPO=.*/OLD_REPO=${REPO}/" /etc/trup/source.conf
