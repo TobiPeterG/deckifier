@@ -116,5 +116,5 @@ systemctl stop display-manager.service
 sleep 1
 rm "$session_running"
 systemctl start display-manager.service
-echo "Restarted LightDM"
+echo "Restarted Display Manager"
 
