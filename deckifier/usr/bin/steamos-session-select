@@ -1,8 +1,9 @@
-#! /usr/bin/bash
-
+#!/usr/bin/bash
 set -e
+
 session_conf="/etc/trup/session.conf"
-. $session_conf
+. "$session_conf"
+
 is_kwin_running() {
     pgrep -f "kwin" > /dev/null
     return $?
@@ -13,108 +14,92 @@ is_mutter_running() {
     return $?
 }
 
-
-die() { echo >&2 "!! $*"; exit 1; }
+die() {
+    echo >&2 "!! $*"
+    exit 1
+}
 
 CONF_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
-SENTINEL_FILE="steamos-session-select"
 
 session="${1:-gamescope}"
-session_type="wayland"
 
-session_launcher="gamescope-session"
-create_sentinel=""
-session_running="/home/deck/.running"
+# Update session type
+if [[ "$2" != "--root" ]]
+    [[ $EUID == 0 ]] && die "Running $0 as root is not allowed"
+    [[ -n ${HOME+x} ]] || die "No \$HOME variable"
 
-if [[ "$2" == "--sentinel-created" ]]; then
-  SENTINEL_CREATED=1
-  session_type="wayland"
-fi
+    # Clear steam game desktop shortcut clutter
+    DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+    grep --files-with-matches "Exec=steam steam://rungameid/" ${DATA_HOME}/applications/* | tr '\n' '\0' | xargs -0 -I {} rm {} || true
 
-# Update config sentinel
-if [[ -z $SENTINEL_CREATED ]]; then
-  [[ $EUID == 0 ]] && die "Running $0 as root is not allowed"
-
-  [[ -n ${HOME+x} ]] || die "No \$HOME variable"
-  config_dir="${XDG_CONF_DIR:-"$HOME/.config"}"
-  session_type=$(
-    cd "$HOME"
-    mkdir -p "$config_dir"
-    cd "$config_dir"
-    if [[ -f "steamos-session-type" ]]; then
-      cp steamos-session-type "$SENTINEL_FILE"
-    else
-      echo "wayland" > "$SENTINEL_FILE"
+    if is_kwin_running; then
+        qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout
     fi
-    cat "$SENTINEL_FILE"
-  )
+    if is_mutter_running; then
+        gnome-session-quit --no-prompt
+    fi
 
-  # clear steam game desktop shortcut clutter
-  DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
-  grep --files-with-matches "Exec=steam steam://rungameid/" ${DATA_HOME}/applications/* | tr '\n' '\0' | xargs -0 -I {} rm {} || true
-
-  # If we were executed as a session user and then re-execute as root below, we don't want to set root's sentinel too
-  export SENTINEL_CREATED=1
-  
-  if is_kwin_running; then
-    qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout
-  fi
-  if is_mutter_running; then
-    gnome-session-quit --no-prompt
-  fi
-  #another session switch script is still running
-  if [ -f "$session_running" ]; then
+    # Call the second script with root privileges
+    exec pkexec "/usr/bin/steamos-session-select" "$session" --root
     exit 0
-  fi
-  touch $session_running
 fi
 
-# Become root
-if [[ $EUID != 0 ]]; then
-  exec pkexec "$(realpath $0)" "$session" --sentinel-created
-  exit 1
+LOCKFILE="/tmp/$(basename "$0").lock"
+
+cleanup() {
+    flock -u 200
+    rm -f "$LOCKFILE"
+}
+
+exec 200>"$LOCKFILE"
+
+# Try to acquire the lock
+if ! flock -n 200; then
+    echo "Another instance of the script is already running."
+    exit 1
 fi
+
+trap cleanup EXIT INT TERM HUP ERR
+
+session="${1:-gamescope}"
+session_launcher="gamescope-session-steam"
 
 # We use "plasma" as "desktop" to hook up to SteamOS's scripts
 case "$session" in
-  plasma-wayland-persistent)
-    session_launcher="$desktop_session"
-  ;;
-  plasma-x11-persistent)
-    session_launcher="$desktop_session"
-  ;;
-  desktop|plasma)
-    session_launcher=""$desktop_session"-session-oneshot"
-    create_sentinel=1
-  ;;
-  gamescope)
-    session_launcher="gamescope-session-steam"
-    create_sentinel=1
-  ;;
-  *)
-    echo >&2 "!! Unrecognized session '$session'"
-    exit 1
-  ;;
+    plasma-wayland-persistent)
+        session_launcher="$desktop_session"
+    ;;
+    plasma-x11-persistent)
+        session_launcher="$desktop_session"
+    ;;
+    desktop|plasma)
+        session_launcher="${desktop_session}-session-oneshot"
+    ;;
+    gamescope)
+        session_launcher="gamescope-session-steam"
+    ;;
+    *)
+        echo >&2 "!! Unrecognized session '$session'"
+        exit 1
+    ;;
 esac
 
 echo "Updated user selected session to $session_launcher"
 
 {
-  echo "[Seat:*]"
-  echo "autologin-session=$session_launcher"
+    echo "[Seat:*]"
+    echo "autologin-session=$session_launcher"
 } > "$CONF_FILE"
 
 echo "Updated system autologin session to $session_launcher"
 while is_kwin_running; do
-    sleep 0.5;
+    sleep 0.5
 done
 while is_mutter_running; do
-    sleep 0.5;
+    sleep 0.5
 done
 systemctl reset-failed display-manager.service
 systemctl stop display-manager.service
 sleep 1
-rm "$session_running"
 systemctl start display-manager.service
 echo "Restarted Display Manager"
-

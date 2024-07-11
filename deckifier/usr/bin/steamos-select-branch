@@ -22,10 +22,6 @@ if [[ $# -eq 1 ]]; then
           echo "rc"
           exit 0
           ;;
-        "devel")
-          echo "staging"
-          exit 0
-          ;;
         *)
           # This can happen on CI/dev builds or when downgrading from a newer build that knows of more branches.  The update
           # path should decide how to handle it.
@@ -53,13 +49,7 @@ if [[ $# -eq 1 ]]; then
       sed -i "s/^BRANCH=.*/BRANCH=unstable/" "$BRANCH_PATH"
       exit 0
       ;;
-    "staging")
-      echo "The staging branch has a high risk of breaking."
-      echo "Do NOT use it unless you know what you are doing."
-      sed -i "s/^BRANCH=.*/BRANCH=devel/" "$BRANCH_PATH"
-      exit 0
-      ;;
   esac
 fi
 
-echo "Usage: steamos-select-branch <-rel|beta|rc|staging>" 1>&2
+echo "Usage: steamos-select-branch <-rel|beta|rc>" 1>&2

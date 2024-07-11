@@ -120,7 +120,13 @@ check_branch() {
 
             # Add new repository
             echo "Adding repository ${REPO//:/_}_${BRANCH} as ${NAME}_${BRANCH}..."
-            zypper ar -f -p 90 "https://download.opensuse.org/repositories/${REPO//:/:/}:/${BRANCH}/openSUSE_Tumbleweed/" ${NAME}_${BRANCH}
+            if zypper lr | grep -q "openSUSE-Slowroll-Oss"; then
+                echo "Slowroll repository found. Adding Slowroll repository."
+                zypper --gpg-auto-import-keys --non-interactive ar -p 90 -f "https://download.opensuse.org/repositories/${REPO//:/:/}:/${BRANCH}/openSUSE_Slowroll/" ${NAME}_${BRANCH}
+            else
+                echo "Slowroll repository not found. Adding Tumbleweed repository."
+                zypper --gpg-auto-import-keys --non-interactive ar -p 90 -f "https://download.opensuse.org/repositories/${REPO//:/:/}:/${BRANCH}/openSUSE_Tumbleweed/" ${NAME}_${BRANCH}
+            fi
         fi
     fi
     sed -i "s/^OLD_REPO=.*/OLD_REPO=${REPO}/" /etc/trup/source.conf
