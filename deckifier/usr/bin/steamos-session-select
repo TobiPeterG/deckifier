@@ -24,7 +24,7 @@ CONF_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
 session="${1:-gamescope}"
 
 # Update session type
-if [[ "$2" != "--root" ]]
+if [[ "$2" != "--root" ]]; then
     [[ $EUID == 0 ]] && die "Running $0 as root is not allowed"
     [[ -n ${HOME+x} ]] || die "No \$HOME variable"
 
