@@ -1,5 +1,5 @@
 # deckifier
-A script for gamescope-session on OpenSUSE Aeon
+A script for gamescope-session on Yuga Linux
 
 Based on https://github.com/lostalejandro/deckifier
 
