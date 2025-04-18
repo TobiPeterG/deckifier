@@ -31,7 +31,7 @@ if command -v trup > /dev/null; then
 	elif [ -n "$EXIT" ]; then
 		exit 0
 	else
-		trup --steam-progress
+		trup
 	fi
 else
     exit 7 # tells Steam client there is no update to perform

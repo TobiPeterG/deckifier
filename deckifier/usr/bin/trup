@@ -1,94 +1,95 @@
 #!/bin/bash
-set -e
-set -o pipefail
+set -euo pipefail
 
 # Define the log file path
-log_file="/tmp/transactional_update_log.txt"
+log_file="/var/log/trup.log"
+: >"$log_file"
+
+exec 3>&1                 # save current stdout (fd 3 → terminal)
+exec 1>>"$log_file"       # stdout  → log
+exec 2>&1                 # stderr  → same log
 
 # Function to monitor and estimate the progress
 monitor_progress() {
-    local total_packages=0
-    local current_package=0
-    local update_started=0
-    local phase="Downloading" # Start with the Downloading phase
-    
-    # Tail the log file and process each line
-    tail -n 1000 -f "$log_file" | while IFS= read -r line; do
-        # Check if the transactional-update process has started
-        if [[ "$line" =~ Options:\ -c\ dup ]]; then
-            update_started=1
+    local total_pkgs=0
+    local retr=0
+    local inst=0
+    local last_percent=-1
+
+    # captures “(cur/total)”
+    local re_plan='([0-9]+)/([0-9]+)'
+    # only match Retrieving lines
+    local re_retr="^Retrieving:[[:space:]].*\\($re_plan\\)"
+    # match “ Installing:” or “ Removing:” lines
+    local re_inst="^[[:space:]]*\\($re_plan\\)[[:space:]]+(Installing|Removing):"
+
+    # wait until you see the “Options:” line
+    local started=0
+
+    while IFS= read -r line; do
+
+        if (( started == 0 )) && [[ "$line" =~ Options:\ .* ]]; then
+            started=1
+            continue
+        fi
+        (( started == 0 )) && continue
+
+        # once you see any "(cur/total)", grab total
+        if [[ $line =~ $re_plan ]]; then
+            total_pkgs=${BASH_REMATCH[2]}
         fi
 
-        # Once update has started, begin to parse and output progress
-        if [[ "$update_started" -eq 1 ]]; then
-            # Parse the progress for downloading
-            if [[ "$line" =~ Retrieving:\ .*\(([0-9]+)/([0-9]+)\) ]]; then
-                current_package=${BASH_REMATCH[1]}
-                total_packages=${BASH_REMATCH[2]}
+        # update retr to the matched “current” on a Retrieving line
+        if [[ $line =~ $re_retr ]]; then
+            retr=${BASH_REMATCH[1]}
+        fi
 
-                # Calculate overall progress for downloading
-                local progress=$((current_package * 100 / (2 * total_packages)))
+        # update inst to the matched “current” on an Installing/Removing line
+        if [[ $line =~ $re_inst ]]; then
+            inst=${BASH_REMATCH[1]}
+        fi
 
-                echo "$progress%"
-            fi
-            
-            if [[ "$line" =~ In\ cache\ .*\(([0-9]+)/([0-9]+)\) ]]; then
-                current_package=${BASH_REMATCH[1]}
-                total_packages=${BASH_REMATCH[2]}
+        if (( total_pkgs > 0 )); then
+            # finished = retr+inst (each package counted twice)
+            local finished=$(( retr + inst ))
+            local percent=$(( finished * 100 / (2 * total_pkgs) ))
 
-                # Calculate overall progress for downloading
-                local progress=$((current_package * 100 / (2 * total_packages)))
-
-                echo "$progress%"
+            if (( percent != last_percent )); then
+                echo "${percent}%" >&3
+                last_percent=$percent
             fi
 
-            # Switch to Installation phase when "Checking for file conflicts:" line appears
-            if [[ "$line" == *"Checking for file conflicts:"* ]] && [[ "$phase" == "Downloading" ]]; then
-                phase="Installing"
-                current_package=0 # Reset current package for installation phase
-            fi
-            
-            if [[ "$line" == *"Preparing"* ]] && [[ "$phase" == "Downloading" ]]; then
-                phase="Installing"
-                current_package=0 # Reset current package for installation phase
-            fi
-
-            # Parse the progress for installing
-            if [[ "$phase" == "Installing" && "$line" =~ \(\ *([0-9]+)/([0-9]+)\)\ Installing:\ .*|\(\ *([0-9]+)/([0-9]+)\)\ Removing:\ .* ]]; then
-                current_package=${BASH_REMATCH[1]}
-                total_packages=${BASH_REMATCH[2]}
-
-                # Calculate overall progress for installation
-                local progress=$((50 + current_package * 50 / total_packages))
-
-                echo "$progress%"
-            fi
-
-            # End when all packages are processed
-            if [[ "$phase" == "Installing" && "$current_package" -eq "$total_packages" ]]; then
-                echo "100%"
-                pkill -P $$ tail
+            # stop once we've seen both phases for every package
+            if (( finished >= 2 * total_pkgs )); then
                 break
             fi
         fi
-    done
+    done < <(tail -s 2 -n 0 -F "$log_file")
 }
 
-run_update() {
-    echo "0%"
-    # Run the transactional-update command and redirect output to the log file
-    transactional-update -c dup > "$log_file" 2>&1 &
-    pid=$!
 
+run_update() {
+    echo "0%" >&3
+    # Run the transactional-update command and redirect output to the log file
+    transactional-update -c dup &
+    pid=$!
+    
     # Start the monitor_progress function in the background
     monitor_progress &
-    pid2=$!
+    mon_pid=$!
 
-    # Wait for the transactional-update command to finish
-    wait $pid
-    pkill $pid2 || true
+    # Wait for the transactional-update command to finish; don't let a non‑zero exit kill the script
+    if ! wait $pid; then
+        tu_status=$?
+    else
+        tu_status=0
+    fi
+
+    pkill $mon_pid || true
     pkill -P $$ tail || true
-    echo "100%"
+    echo "100%" >&3
+
+    return $tu_status
 }
 
 check_update() {
@@ -149,10 +150,6 @@ main() {
                 TRUP_CHECK_UPDATE=1
                 shift
                 ;;
-            --steam-progress)
-                TRUP_STEAM_PROGRESS=1
-                shift
-                ;;
             -*|--*)
                 echo "Unknown argument $1"
                 exit 1
@@ -161,17 +158,16 @@ main() {
     done
     
     check_branch
-    check_update
-    exit_status=$?  # Capture the exit status of check_update
-    if [ $exit_status -eq 7 ]; then
-        exit 7 # let Steam know there is no update available
-    fi
     
     if [ $TRUP_CHECK_UPDATE -eq 1 ]; then
-        exit 0 # let Steam know there is an update available
+   	check_update
+   	exit_status=$?  # Capture the exit status of check_update
+        exit $exit_status
     fi
     
     run_update
+    ret=$?
+    [[ $ret -ne 0 && $ret -ne 10 ]] && exit $ret   # treat 10 (“Nothing to do”) as success
 }
 
 if [ "$0" = "$BASH_SOURCE" ] ; then
