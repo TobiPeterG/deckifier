@@ -85,8 +85,9 @@ run_update() {
         tu_status=0
     fi
 
-    pkill $mon_pid || true
-    pkill -P $$ tail || true
+    kill $mon_pid || true
+    # workaround to kill the tail process that is started in a subshell
+    pkill -u root -f "tail -s 2 -n 0 -F $log_file" || true
     echo "100%" >&3
 
     return $tu_status
