@@ -168,7 +168,12 @@ main() {
     
     run_update
     ret=$?
-    [[ $ret -ne 0 && $ret -ne 10 ]] && exit $ret   # treat 10 (“Nothing to do”) as success
+
+    # If run_update failed with something other than “10” (nothing to do),
+    # propagate that failure back to Steam:
+    if [[ $ret -ne 0 && $ret -ne 10 ]]; then
+        exit $ret
+    fi
 }
 
 if [ "$0" = "$BASH_SOURCE" ] ; then
