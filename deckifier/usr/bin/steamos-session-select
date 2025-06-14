@@ -14,7 +14,8 @@ die() { echo "!! $*" >&2; exit 1; }
 ###############################################################################
 # constants / globals
 ###############################################################################
-CONF_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
+SESSION_CONF_FILE="/etc/lightdm/lightdm.conf.d/10-gamescope-session.conf"
+USER_CONF_FILE="/etc/lightdm/lightdm.conf.d/00-autologin-user.conf"
 LOCKFILE="/tmp/$(basename "$0").$UID.lock"
 
 session="${1:-gamescope}"
@@ -88,7 +89,8 @@ desktop_launcher="${desktop_session}-session-oneshot"
 current_launcher="$session_launcher"         # set earlier in the script
 
 for ((attempt=1; ; attempt++)); do
-    printf '[Seat:*]\nautologin-session=%s\n' "$current_launcher" > "$CONF_FILE"
+    printf '[Seat:*]\nautologin-session=%s\n' "$current_launcher" > "$SESSION_CONF_FILE"
+    printf '[Seat:*]\nautologin-user=deck\n' > "$USER_CONF_FILE"
     echo "Attempt $attempt: starting Display Manager with $current_launcher"
 
     if start_and_wait; then
